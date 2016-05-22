@@ -3,26 +3,31 @@ title: "Predictive modeling for qualitative activity recognition"
 author: "Enrique Bertrand"
 date: "23rd May 2016"
 output: 
-    html_document
-lang: english
+    html_document:
+        number_sections: true
+        toc: true
+        toc_float:
+            collapsed: false
+            smooth_scroll: false
+lang: spanish
 fontsize: 10pt
 ---
 
-## Executive summary
+# Executive summary
 
-Through a set of body and device sensors and the appropriate predictive classification model is possible to quantify how well or bad a physical activity is performed. Four classification models -Classication and Regression Trees (CART), Quadratic Discriminant Analysis (QDA), Random Forest (RF), and Generalized Boosted Models (GBM)-, are trained with the dataset collected in a standardized way from a weight lifting exercise. Then they are compared in terms of accuracy using the `caret` package and its cross-validation capabilities. 
+Through a set of body and device sensors and the appropriate predictive classification model is possible to quantify how well or bad a physical activity is performed. Four classification models -Classification and Regression Trees (CART), Quadratic Discriminant Analysis (QDA), Random Forest (RF), and Generalized Boosted Models (GBM)-, are trained from an experimental dataset that has been collected in the context of a weight lifting exercise supervised by professional coachs. Then their results are compared in terms of accuracy. This analysis is carried out with the help of the `caret` package and its cross-validation capabilities. 
 
 The results show that GBM and RF models are the more precise classifiers, although the computational cost (specially with Generalized Boosted) is much higher than with CART and QDA. Both methods GBM and RF have similar accuracy (GBM slightly better) and they predict the same results when they are confronted with the testing dataset.
 
-## Experimental datasets: Loading, exploratory analysis and cleaning
+# Experimental datasets: Loading, exploratory analysis and cleaning
 
-Preliminary warning: all the key R code is included in the main body of this report. The rest of the code, which covers auxiliary operations, is presented in the appendices (at the end of the report) and referenced in the corresponding section.
+Preliminary warning: all the key R code is included in the main body of this report. The rest of the code, which covers auxiliary operations and detailed results, is presented in the appendices (at the end of the report) and referenced in the corresponding section.
 
 ```{r ref.label="libraries", echo=FALSE, eval=TRUE, warning = FALSE, message = FALSE, results='hide'}
 
 ```
 
-### Loading files and generating datasets
+## Loading files and generating datasets
 
 Two files (csv format) with training and testing data that collect the experimental results have been provided by the group [Groupware@LES](http://groupware.les.inf.puc-rio.br/har) and they are available in a cloud site. Go to appendix [Loading experimental datasets](#datasets) to see the R code used for loading them from the source in case they are not yet available in the right directory.
 
@@ -46,26 +51,26 @@ wle.testing.raw <- read.csv(file.path(file_dir, "pml-testing.csv"),
 
 ```
 
-### Exploratory analysis
+## Exploratory analysis
 
 The training dataset `wle.raw` gathers `r dim(wle.raw)[2]` variables from `r dim(wle.raw)[1]` observations. The outcome variable that should be predicted by the models is `classe`. There are six classes (`A` to `E`), which correspond to the specified execution of the exercice (`A`) and 4 usual mistakes (`B`, `C`, `D`, and `E`).
 
 Observations are evenly spread between classes:
 
-```{r echo=FALSE, eval=TRUE, comment=""}
+```{r exploratory, echo=FALSE, eval=TRUE, comment=""}
 
 print(table(wle.raw$classe))
 
 ```
 
-The value as predictors of the other `r dim(wle.raw)[2] - 1` variables is relative as the content of most of them is mainly NAs. In appendix [Determining how many variables are 90% NAs](#colNAs) you can see the R code for computing how many variables are in this situation:
+The value as predictors of the other `r dim(wle.raw)[2] - 1` variables is relative due to the fact that the content of most of them is mainly NAs. In appendix [Determining how many variables are 90% NAs](#colNAs) you can see the R code for computing how many variables are in this situation:
 
 
 ```{r ref.label="colNAs", echo=FALSE, eval=TRUE, comment=""}
 
 ```
 
-### Cleaning the datasets
+## Cleaning the datasets
 
 First, We must proceed to clean the training datasets covering three aspects that highly impact in the quality of the models: 
 
@@ -75,7 +80,7 @@ First, We must proceed to clean the training datasets covering three aspects tha
 
 All the columns detected with any of these problems will be ignored. Moreover the 6 first columns contain auxiliary information for the observations with no relevance for predictions. The final results is a `wle` clean dataset.
 
-```{r echo=TRUE, eval=TRUE, comment=""}
+```{r cleaning, echo=TRUE, eval=TRUE, comment=""}
 
 # Determining  Near Zero Variations columns
 nzvPred <- nearZeroVar(wle.raw)
@@ -107,7 +112,7 @@ Finally, predictions will be based on `r dim(wle)[2] - 1` variables.
 
 The last step is to convert the outcome to a categorical variable and to select the same columns in the testing dataset that in the training one to make feasible the predictions:
 
-```{r echo=TRUE, eval=TRUE, comment=""}
+```{r cleanTesting, echo=TRUE, eval=TRUE, comment=""}
 
 # Converting outcome in a categorical variable
 wle$classe <- as.factor(wle$classe)
@@ -120,25 +125,128 @@ wle.testing <- wle.testing.raw[, finalCols]
 ```
 
 
-## Predictive models
+# Predictive modeling of the weight lifting activity
 
-### Preliminary steps: splitting dataset and cross validation
+The main purpose of this study is to develop a sufficiently precise model for predicting the activity class that corresponds to every experimental observation in the weight lifting dataser. We are facing a classification problem where the categorical outcome, the variable `classe`, has multiple values.
 
-### Classification and regression trees (CART)
+For this kind of problems we can apply several classification models, all of them quite different in terms of computational cost, interpretability, potential accuracy, etc. In practice, we will evaluate the following four models:
 
-### Quadratic Discriminant Analysis (QDA)
+1. Classification and Regression Trees (CART)
 
-### Random Forest (RF)
+2. Quadratic Discriminant Analysis (QDA)
 
-### Generalized Boosted Regression Models (GBM)
+3. Random Forest (RF)
 
-## Final model selection and prediction on the testing datasat
+4. Generalized Boosted Regression Models (GBM)
 
-## Conclusion
+The metric used for comparing the models will be the accuracy (total true predictions / total predictions).
 
-## Appendices
+We will handle our analysis with the help of the `caret` package for two reasons:
 
-### Loading all required packages
+- It offers a common interface to the basic modeling operations for any of these models.
+
+- In those models that have different fitting parameters, it directly supports a cross-validation approach for finding the parameter values that lead to the minimum error.
+
+## Preliminary steps: cross validation configuration and dataset splitting
+
+The `caret` package can use a cross validation approach (a resampling method) to select the values of the model parameters that lead to the minimum error in the train phase. In our case, we will fix the number of k-folds to 5. 
+
+The price to pay, the computational cost of considering resampling, can be mitigated in some way using the parallel computing capabilities offered in R by the `parallel` package for Windows/Intel platforms:
+
+```{r crossval, echo=TRUE, eval=TRUE, comment="", messages=FALSE, warning=FALSE}
+
+# Enabling parallel computing in multicore processor
+library(foreach)
+library(iterators)
+library(parallel)
+library(doParallel)
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+
+# Fixing trControl parameters for train()
+# CV with k-folds = 5 and allow parallel when applicable.
+cvParam <- trainControl(method="cv", number=5, verboseIter = FALSE, 
+                        allowParallel = TRUE)
+
+```
+
+
+Even with a cross validation approach is worthy to split the training dataset in two subsets, training (60%) and validating (40%), as we want to compare the accuracy of different models over the validating subset. Moreover, reducing the size of the training subset makes more feasible some heavy computations with the RF and GBM models in a limited resources scenario (personal laptop).
+
+From now and in order to guarantee the reproductibility, a seed is fixed before any function that implies sampling or resampling.
+
+```{r splitting, echo=TRUE, eval=TRUE, comment=""}
+
+set.seed(150658)
+
+# Create a 60/40 split in the original training dataset
+train <- createDataPartition(wle$classe, p = 0.60, list = FALSE)
+training <- wle[train, ]
+validating <- wle[-train, ]
+
+```
+
+## Classification and Regression trees (CART)
+
+Our CART model will be based on the `rpart` package. In this case, the unique parameter that can be optimized in `caret` through cross-validation is the complexity (`cp`). We will provide a grid of `cp` values to the `train()` function.
+
+The most challemgimg task with CART models is to find a balance between interpretabilty and complexity of the final tree. Through the parameter `minbucket`, which determines the minimum number of observation in terminal nodes, we can reduce the number of leafs (pruning the tree). Taking into account that we have around 2,000 thousand observations for every class in the training dataset we choose a conservative value of 200.
+
+```{r cart, echo=TRUE, eval=TRUE, comment=""}
+
+set.seed(150658)
+
+# Grid of cp values to be used in the train
+rpartGrid <- expand.grid(cp = seq(0.0000, 0.005, by = 0.0005))
+
+# Training the model with the grid of cp values and a minbucket size of 300
+model_rpart <- train(classe ~ ., data = training, 
+                     method = "rpart", control = rpart.control(minbucket = 200),
+                     tuneGrid = rpartGrid, trControl = cvParam)
+
+```
+
+Go to the appendix [Detailed results of the CART model](#CART) to see the main info for the model `model_rpart`.
+
+```{r ref.label="printCART", echo=FALSE, eval=FALSE, comment="", results='hide'}
+
+```
+
+Cross validation shows how the accuracy depends on the complexity parameter (`cp`):
+
+```{r CVCART, echo=TRUE, eval=TRUE, fig.height=4, fig.width=5}
+
+plot(model_rpart, main = "CART model: optimum parameters")
+
+```
+
+We can now apply the final model to the validating dataset:
+
+```{r ValidCART, echo=TRUE, eval=TRUE, comment=""}
+
+# Predicting the result of the model iver the validating subset
+pred <- predict(model_rpart, validating, type = "raw")
+
+# Printing the results in a confusion matrix
+print(confusionMatrix(pred,validating$classe))
+
+```
+
+It is evident that, even with a tree not too much pruned, the accuracy of CART methods is relatively low (as expected) and make our first model not acceptable.
+
+## Quadratic Discriminant Analysis (QDA)
+
+## Random Forest (RF)
+
+## Generalized Boosted Models (GBM)
+
+## Final model and prediction on the testing datasat
+
+# Conclusion
+
+# Appendices
+
+## Loading all required packages
 
 ```{r libraries, echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE}
 
@@ -150,7 +258,7 @@ require(MASS)
 
 ```
 
-### <a name="datasets"></a>Loading experimental datasets
+## <a name="datasets"></a>Loading experimental datasets
 
 ```{r dataLoad, echo=TRUE, eval=TRUE}
 
@@ -176,7 +284,7 @@ if (!file.exists(file_fullname)) {
 ```
 
 
-### <a name="colNAs"></a>Determining how many variables are 90% NAs
+## <a name="colNAs"></a>Determining how many variables are 90% NAs
 
 ```{r colNAs, echo=TRUE, eval=TRUE, results='hide'}
 
@@ -192,5 +300,16 @@ for(col in colnames(wle.raw)){
     }
 }
 cat("\n Number of variables with > 90% of NA values:", colNAs)
+
+```
+
+## <a name="CART"></a>Detailed results of the CART model
+
+```{r printCART, echo=TRUE, eval=TRUE, comment="", fig.height=6.5, fig.width=9}
+
+print(model_rpart)
+plot(model_rpart$finalModel, uniform = TRUE,
+     main = "CART model")
+text(model_rpart$finalModel, pretty = 0, cex = 0.5)
 
 ```
