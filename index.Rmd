@@ -1,25 +1,196 @@
 ---
-title: "Prueba Web"
-author: "ebertrand"
-date: "2 de mayo de 2016"
-output: html_document
+title: "Predictive modeling for qualitative activity recognition"
+author: "Enrique Bertrand"
+date: "23rd May 2016"
+output: 
+    html_document
+lang: english
+fontsize: 10pt
 ---
 
-Esta es una nueva linea para ver la frecuencia de actualizacion.
-Desconozco donde estan las instrucciones para craer esta estructura
+## Executive summary
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Through a set of body and device sensors and the appropriate predictive classification model is possible to quantify how well or bad a physical activity is performed. Four classification models -Classication and Regression Trees (CART), Quadratic Discriminant Analysis (QDA), Random Forest (RF), and Generalized Boosted Models (GBM)-, are trained with the dataset collected in a standardized way from a weight lifting exercise. Then they are compared in terms of accuracy using the `caret` package and its cross-validation capabilities. 
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+The results show that GBM and RF models are the more precise classifiers, although the computational cost (specially with Generalized Boosted) is much higher than with CART and QDA. Both methods GBM and RF have similar accuracy (GBM slightly better) and they predict the same results when they are confronted with the testing dataset.
 
-```{r}
-summary(cars)
+## Experimental datasets: Loading, exploratory analysis and cleaning
+
+Preliminary warning: all the key R code is included in the main body of this report. The rest of the code, which covers auxiliary operations, is presented in the appendices (at the end of the report) and referenced in the corresponding section.
+
+```{r ref.label="libraries", echo=FALSE, eval=TRUE, warning = FALSE, message = FALSE, results='hide'}
+
 ```
 
-You can also embed plots, for example:
+### Loading files and generating datasets
 
-```{r, echo=FALSE}
-plot(cars)
+Two files (csv format) with training and testing data that collect the experimental results have been provided by the group [Groupware@LES](http://groupware.les.inf.puc-rio.br/har) and they are available in a cloud site. Go to appendix [Loading experimental datasets](#datasets) to see the R code used for loading them from the source in case they are not yet available in the right directory.
+
+```{r ref.label="dataLoad", echo=FALSE, eval=TRUE, results='hide'}
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Once downloaded, the csv files are converted to two raw datasets: `wle.raw` and `wle.testing.raw` (from "weight lifting exercise"). In the csv files they are numerous NA type cells with different content: blank, "#DIV/0!" strings, and "NA" strings. Moreover the first column simpy refers to the row number. This R code generates the raw datasets taking these aspects into account:
+
+```{r datasets, echo=TRUE, eval=TRUE, comment=""}
+
+# Generating training dataset
+wle.raw <- read.csv(file.path(file_dir, "pml-training.csv"), 
+                         row.names = 1, na.strings = c("", "NA", "#DIV/0!"), 
+                         stringsAsFactors = FALSE)
+
+# Generating testing dataset
+wle.testing.raw <- read.csv(file.path(file_dir, "pml-testing.csv"), 
+                    row.names = 1, na.strings = c("", "NA", "#DIV/0!"), 
+                    stringsAsFactors = FALSE)
+
+```
+
+### Exploratory analysis
+
+The training dataset `wle.raw` gathers `r dim(wle.raw)[2]` variables from `r dim(wle.raw)[1]` observations. The outcome variable that should be predicted by the models is `classe`. There are six classes (`A` to `E`), which correspond to the specified execution of the exercice (`A`) and 4 usual mistakes (`B`, `C`, `D`, and `E`).
+
+Observations are evenly spread between classes:
+
+```{r echo=FALSE, eval=TRUE, comment=""}
+
+print(table(wle.raw$classe))
+
+```
+
+The value as predictors of the other `r dim(wle.raw)[2] - 1` variables is relative as the content of most of them is mainly NAs. In appendix [Determining how many variables are 90% NAs](#colNAs) you can see the R code for computing how many variables are in this situation:
+
+
+```{r ref.label="colNAs", echo=FALSE, eval=TRUE, comment=""}
+
+```
+
+### Cleaning the datasets
+
+First, We must proceed to clean the training datasets covering three aspects that highly impact in the quality of the models: 
+
+1. Near zero variation columns.   
+2. Mostly NAs columns (NAs > 90%)
+3. Highly correlated columns (correlation > 95%)
+
+All the columns detected with any of these problems will be ignored. Moreover the 6 first columns contain auxiliary information for the observations with no relevance for predictions. The final results is a `wle` clean dataset.
+
+```{r echo=TRUE, eval=TRUE, comment=""}
+
+# Determining  Near Zero Variations columns
+nzvPred <- nearZeroVar(wle.raw)
+
+# Determining columns with more than 90% of NAs
+colNA <- sapply(1:ncol(wle.raw), 
+                function(i){sum(is.na(wle.raw[, i])) > 0.90 * nrow(wle.raw)})
+NAPred <- which(colNA == TRUE)
+
+# Determining first 6 colums with auxiliary experimental info but not measures
+NoPred <- seq(1:6)
+
+# Summing up not all the irrelevant columns and suppresing them to generate 
+# a clean dataset with meaningful predictors
+delPred <- unique(c(NAPred, nzvPred, NoPred))
+wle <- wle.raw[, -delPred]
+
+# Looking for high correlated predictors and deleting them
+# (withouth taking into account classe)
+outcome <- which(colnames(wle) == "classe")
+predictCor <- cor(wle[, -outcome])
+highCorPredictCor <- findCorrelation(predictCor, cutoff = 0.95)
+
+wle <- wle[, -highCorPredictCor]
+
+```
+
+Finally, predictions will be based on `r dim(wle)[2] - 1` variables.
+
+The last step is to convert the outcome to a categorical variable and to select the same columns in the testing dataset that in the training one to make feasible the predictions:
+
+```{r echo=TRUE, eval=TRUE, comment=""}
+
+# Converting outcome in a categorical variable
+wle$classe <- as.factor(wle$classe)
+
+# Finding the final columns in the clean wle dataset and selecting them
+# for generating the same estructure in the testing data set
+finalCols <- which(colnames(wle.testing.raw) %in% colnames(wle))
+wle.testing <- wle.testing.raw[, finalCols]
+
+```
+
+
+## Predictive models
+
+### Preliminary steps: splitting dataset and cross validation
+
+### Classification and regression trees (CART)
+
+### Quadratic Discriminant Analysis (QDA)
+
+### Random Forest (RF)
+
+### Generalized Boosted Regression Models (GBM)
+
+## Final model selection and prediction on the testing datasat
+
+## Conclusion
+
+## Appendices
+
+### Loading all required packages
+
+```{r libraries, echo = TRUE, eval = TRUE, warning = FALSE, message = FALSE}
+
+require(caret)
+require(randomForest)
+require(rpart)
+require(gbm)
+require(MASS)
+
+```
+
+### <a name="datasets"></a>Loading experimental datasets
+
+```{r dataLoad, echo=TRUE, eval=TRUE}
+
+# Setting the data directory
+file_dir <- file.path("C:/Data Science/02 Coursera/08 Machine Learning", "data")
+
+# Loading the training dataset if not yet available
+file_fullname <- file.path(file_dir, "pml-training.csv")
+if (!file.exists(file_fullname)) {
+    fileUrl <- 
+        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+    download.file(fileUrl, destfile = file_fullname, method = "libcurl")
+}
+
+# Loading the testing dataset if not yet available
+file_fullname <- file.path(file_dir, "pml-testing.csv")
+if (!file.exists(file_fullname)) {
+    fileUrl <- 
+        "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+    download.file(fileUrl, destfile = file_fullname, method = "libcurl")
+}
+
+```
+
+
+### <a name="colNAs"></a>Determining how many variables are 90% NAs
+
+```{r colNAs, echo=TRUE, eval=TRUE, results='hide'}
+
+colNAs <- 0
+
+# Covering all the variables (columns) in the dataset
+for(col in colnames(wle.raw)){
+    # Calculating the number of NAs in each column
+    NAs <- sum(is.na(wle.raw[, col]))
+    # Checking if it is bigger than 90% of thw number of dataset rows
+    if (NAs > 0.9 * nrow(wle.raw)) {
+        colNAs <- colNAs + 1
+    }
+}
+cat("\n Number of variables with > 90% of NA values:", colNAs)
+
+```
