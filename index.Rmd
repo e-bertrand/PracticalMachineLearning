@@ -1,7 +1,7 @@
 ---
 title: "Predictive modeling for qualitative activity recognition"
 author: "Enrique Bertrand"
-date: "23rd May 2016"
+date: "24th May 2016"
 output: 
     html_document:
         number_sections: true
@@ -18,11 +18,11 @@ Through a set of body and device sensors and the appropriate predictive classifi
 
 Tree classification models -Classification and Regression Trees (CART), Random Forest (RF), and Generalized Boosted Models (GBM)-, are trained from an experimental dataset that has been collected in the context of a weight lifting exercise supervised by professional coaches. Then their results are compared in terms of accuracy. This analysis is carried out with the help of the `caret` package and its cross-validation capabilities. 
 
-The results show that GBM and RF models are much more precise classifiers,  although the computational cost (especially with GBM) is significantly higher than with CART. Both methods GBM and RF have a similar accuracy (bigger than 0.99; GBM slightly better) and they predict the same results when they are confronted with the 20 cases testing dataset (probability of correct results > 0.89). After calculating the corresponding p-values, we can not reject the hypothesis that RF accuracy is equal to GBM accuracy. Accordingly, we choose the RF model due to its lower computational demands. 
+The results show that GBM and RF models are much more precise classifiers than CART, although the computational cost (especially with GBM) is significantly higher. Both methods GBM and RF have a similar accuracy (> 0.99; GBM slightly better) and they predict the same results when they are confronted with the 20 cases testing dataset (probability of correct results $\approx$ 0.9). After calculating the corresponding p-values, we fail in rejecting the null hypothesis that RF accuracy is equal to GBM accuracy. Accordingly, we choose the RF model due to its lower computational demands. 
 
 # Experimental datasets: Loading, exploratory analysis and cleaning
 
-Preliminary warning: all the R code is included in the [Appendices: I - R Code](#rcode), at the end of this report, and referenced in the corresponding section. The [Appendices: II - Model's details](#models) covers detailed info about the training process of built models.
+Preliminary warning: all the R code is included in the [Appendices: I - R Code](#rcode), at the end of this report, and referenced in the corresponding section. The [Appendices: II - Model's details](#models) cover detailed info about the training process and results of built models.
 
 
 ```{r ref.label="packages", echo=FALSE, eval=TRUE, warning = FALSE, message = FALSE, results='hide'}
@@ -35,7 +35,7 @@ Two files (csv format) with training and testing data that collect the experimen
 ```{r ref.label="fileDownload", echo=FALSE, eval=TRUE, results='hide'}
 ```
 
-Once downloaded, the csv files are converted to two raw datasets: `wle.raw` and `wle.testing.raw` (from "weight lifting exercise"). A preliminary inspection of the the csv files shows that there are numerous incomplete observations, with NA type cells that contain different "empty" values: blanks, "#DIV/0!" strings, and "NA" strings. Moreover, the first column simply refers to the row number. The R code generates the raw datasets taking these aspects into account:
+Once downloaded, the csv files are converted to two raw datasets: `wle.raw` and `wle.testing.raw` (from "weight lifting exercise"). A preliminary inspection of the csv files shows that there are numerous incomplete observations, with NA type cells that contain different "empty" values: blanks, "#DIV/0!" strings, and "NA" strings. Moreover, the first column simply refers to the row number. The R code generates the raw datasets taking these aspects into account:
 
 ```{r ref.label="datasets", echo=FALSE, eval=TRUE, comment=""}
 ```
@@ -56,32 +56,32 @@ The value as predictors of the other `r dim(wle.raw)[2] - 1` variables is relati
 ```{r ref.label="colNAs", echo=FALSE, eval=TRUE, comment=""}
 ```
 
-Go to appendix [Exploratory analysis](#explo) to see the R code used for this phase.
+Go to the appendix [Exploratory analysis](#explo) to see the R code used for this phase.
 
 ## Cleaning the datasets
 
-First, we must proceed to clean the training datasets solving three column issues that highly impact in the quality of the predicting models: 
+First, we must proceed to clean the `training` dataset solving three issues related with columns that highly impact in the quality of the predicting models:
 
 1. Near zero variation columns.   
 2. Mostly NAs columns (NAs > 90%)
 3. Highly correlated columns (correlation > 95%)
 
-All the columns detected with any of these problems will be ignored. Moreover, the six first columns contain auxiliary information for the observations with no relevance for predictions. 
+All the columns detected with any of these problems must be ignored. Moreover, the six first columns contain auxiliary information for the observations with no relevance for predictions. 
 
-The last step is to convert the outcome to a categorical variable and to select the same columns in the testing dataset that in the training one to make feasible the predictions.
+The last step is to convert the outcome `classe` to a categorical variable and to select the same columns in the `testing` dataset that in the `training` one to make the predictions.
 
 ```{r ref.label="cleaning", echo=FALSE, eval=TRUE, comment=""}
 ```
 
 The final result are a `wle` and a `wle.testing` clean datasets with only `r dim(wle)[2] - 1` predictors.
 
-Go to appendix [Cleaning the datasets](#clean) to see the R code used for this phase.
+Go to the appendix [Cleaning the datasets](#clean) to see the R code used for this phase.
 
 # Predictive modeling of the weight lifting activity
 
 The main purpose of this study is to develop a sufficiently precise model for predicting the activity class that corresponds to every experimental observation in the weight lifting dataset. We are facing a classification problem where the categorical outcome, the variable `classe`, has multiple values.
 
-For this kind of problems we can apply several classification models, all of them quite different in terms of computational cost, interpretability, potential accuracy, etc. In practice, we will evaluate the following three models:
+For this kind of problems, we can apply several classification models, all of them quite different in terms of computational cost, interpretability, potential accuracy, etc. In practice, we will evaluate the following three models:
 
 1. Classification and Regression Trees (CART)
 
@@ -115,7 +115,7 @@ From now and in order to guarantee the reproducibility, a seed is fixed before a
 ```{r ref.label="splitting", echo=FALSE, eval=TRUE, comment=""}
 ```
 
-Go to appendix [Preliminary steps: cross validation configuration and dataset splitting](#preStep) to see the R code used for this phase.
+Go to the appendix [Preliminary steps: cross validation configuration and dataset splitting](#preStep) to see the R code used for this phase.
 
 ## Classification and Regression trees (CART)
 
@@ -131,16 +131,16 @@ Cross validation shows how the accuracy depends on the complexity parameter (`cp
 ```{r ref.label="CVCART", echo=FALSE, eval=TRUE, fig.height=4, fig.width=5}
 ```
 
-We can now apply the final model, which has been calculated with cp = `r model_rpart$bestTune`, to the `validating` subset in order to determine a realistic accuracy. We can also estimate the probability of predicting the 20 test cases correctly.
+Now we apply the final model, which has been calculated with cp = `r model_rpart$bestTune`, to the `validating` subset in order to determine a realistic accuracy. We can also estimate the probability of predicting the 20 test cases correctly.
 
 ```{r ref.label="ValidCART", echo=FALSE, eval=TRUE, comment=""}
 ```
 
 It is evident that, even with a tree not too much pruned, the accuracy of CART methods is not too high (as expected). As a consequence, the probability of predicting the test correctly is extremely low and make our first model not acceptable for this scenario.
 
-Go to appendix [The CART model](#modCART) to see the R code used for this phase.
+Go to the appendix [The CART model](#modCART) to see the R code used for this phase.
 
-In you want to see more details on the training process results go to appendix [Detailed training process and final tree of the CART model](#resCART).
+In you want to see more details on the training process and results go to the appendix [Detailed process and final tree of the CART model](#resCART).
 
 ```{r ref.label="printCART", echo=FALSE, eval=FALSE}
 ```
@@ -152,88 +152,110 @@ Random Forest models are supported by the `randomForest` package. In a RF model 
 
 Before we establish a grid of `mtry` values to be evaluated in the `train()` function, we can predict the cross-validated performance for different number of predictors with the `rfcv()` function of `randomForest`:
 
-```{r rfcv, echo=TRUE, eval=FALSE, comment="", fig.height=4, fig.width=5}
-
-set.seed(150658)
-
-# Converting dataset in the matrix format required by function rfcv
-predWle <- model.matrix(classe ~ .-1, data = training)
-
-# Predicting CV error in terms of number of predictors
-cvpred <- rfcv(predWle, training$classe, cv.fold = 5, step = 0.65)
-
-plot(cvpred$error.cv ~ as.numeric(names(cvpred$error.cv)), type = "b",
-     main = "Predicted CV performance in the RF model", 
-     xlab = "Number of predictors", ylab = "CV error")
-
+```{r ref.label="rfcv", echo=FALSE, eval=FALSE, comment="", fig.height=4, fig.width=5}
 ```
 
-In the light of the previous graph, we can define a grid of `mtry` values from 5 to 25. The other relevant RF parameter, number of trees to grow (`ntree`), is fixed in 60 to make the model computable. After executing the model we will check if this number is acceptable:
+In the light of the previous graph, we can define a grid of `mtry` values from 5 to 25. The other relevant RF parameter, number of trees to grow (`ntree`), is fixed in 60 to make the model computable with limited resources. After executing the model, we will check if this number is acceptable:
 
-```{r rf, echo=TRUE, eval=TRUE, comment=""}
-
-set.seed(150658)
-
-# Defining the grid of mtry values
-rfGrid <- expand.grid(mtry = seq(5, 25, by = 4))
-
-# Training the model with the grid of mtry values and a ntree size of 60
-model_rf <- train(classe ~ ., data = training, 
-               method = "rf", ntree= 60, trControl = cvParam,
-               tuneGrid = rfGrid)
-
-```
-
-Go to the appendix [Detailed results of the RF model](#RF) to see the main info for the model `model_rf`.
-
-```{r ref.label="printRF", echo=FALSE, eval=FALSE, comment="", results='hide'}
-
+```{r ref.label="rf", echo=FALSE, eval=TRUE, comment=""}
 ```
 
 Cross validation shows how the accuracy depends on the `mtry` parameter:
 
-```{r CVRF, echo=TRUE, eval=TRUE, fig.height=4, fig.width=5}
-
-plot(model_rf, main = "RF model: optimum parameters")
-
+```{r ref.label="CVRF", echo=FALSE, eval=TRUE, fig.height=4, fig.width=5}
 ```
 
-We can check if the number of trees fixed in the model is acceptable:
+Once we have trained the model, we can check now if the number of trees fixed in the model is acceptable:
 
-```{r treesRF, echo=TRUE, eval=TRUE, fig.height=4, fig.width=5}
-
-plot(model_rf$finalModel, main = "Influence of number of trees on model error")
-
+```{r treesRF, echo=FALSE, eval=TRUE, fig.height=5, fig.width=5}
 ```
 
-We can see than 60 is an acceptable value as the error rate is almost flat from around 40.
+As can be seen, 60 trees is an acceptable value as the error rate is almost flat from around 40.
 
-We can now apply the final model to the validating dataset to get the accuracy and estimate the probability of predicting the 20 test cases correctly:
+We can apply the final model, which have a `mtry` value of `r model_rf$bestTune` and a `ntree` value of `r model_rf$finalModel$ntree`, to the `validating` subset for getting the accuracy and estimating the probability of predicting the 20 test cases correctly:
 
-```{r ValidRF, echo=TRUE, eval=TRUE, comment=""}
-
-# Predicting the result of the model iver the validating subset
-pred <- predict(model_rf, validating, type = "raw")
-
-# Printing the results in a confusion matrix
-cm <- confusionMatrix(pred,validating$classe)
-print(cm)
-
-# Probability of predicting the test cases
-cat("\nProbability of predicting test cases correctly:",
-    (cm$overall["Accuracy"]) ^ 20, "\n")
-
+```{r ValidRF, echo=FALSE, eval=TRUE, comment=""}
 ```
 
-The accuracy with the validating data set is excelent. This RF model shows a high probability to predict correctly the testing dataset with 20 test cases.
+The accuracy with the `validating` subset is excellent. This RF model shows a high probability to predict correctly the `testing` dataset with 20 test cases.
+
+Go to the appendix [The Random Forest model](#modRF) to see the R code used for this phase.
+
+In you want to see more details on the training process and results go to the appendix [Detailed process and final results of the RF model](#resRF).
+
+```{r ref.label="printRF", echo=FALSE, eval=FALSE}
+```
+
 
 ## Generalized Boosted Models (GBM)
 
-## Final model selection 
+Generalized Boosted models are supported by the `gbm` package. In a GB model there are many fitting parameters. Find the right balance between them using a cross validation approach is a computationally demanding task, so we will use in our case part of the key parameters, keeping fixed the rest. 
 
-## Prediction on the testing dataset
+In detail, we define a grid of parameters, varying `interaction.depth` (maximum depth of predictors interaction) between 10 and 15 and `n.minobsinnode` (minimum number of observations in the terminal nodes) between 50 and 150, and keeping fixed `shrinkage` and `n.trees`.
 
-# Conclusion
+```{r ref.label="gbm", echo=FALSE, eval=TRUE, comment=""}
+```
+
+Cross validation shows how the accuracy depends on those parameters:
+
+```{r ref.label="CVGBM", echo=FALSE, eval=FALSE, fig.height=5, fig.width=5}
+```
+
+Now we can apply the final model, which has a `interaction.depth` value of `r model_gbm$finalModel$interaction.depth` and a `n.minobsinnode` value of `r model_gbm$finalModel$n.minobsinnode`, to the `validating` subset for getting the accuracy and estimating the probability of predicting the 20 test cases correctly:
+
+```{r ValidGBM, echo=FALSE, eval=TRUE, comment=""}
+```
+
+The accuracy with the `validating` subset is also excellent and slightly better than with the RF model. We will evaluate later if this difference is statistically significant. This GB model has a high probability to predict correctly the `testing` dataset with 20 test cases.
+
+Go to the appendix [The Generalizad Boosted Model](#modGBM) to see the R code used for this phase.
+
+In you want to see more details on the training process and results go to the appendix [Detailed process and final results of the GB model](#resGBM).
+
+```{r ref.label="printGBM", echo=FALSE, eval=FALSE}
+```
+
+# Final model selection 
+
+In order to select the best classification method with solid statistical bases, we can use the capabilities the `caret` package offers to compare metrics from different models, provided that they use the same resampling techniques and data. Which is our case with cross validation based on 5 k-folds and setting the same seed before any `train()` invocation.
+
+First of all, let see  the distribution of accuracy metrics from the models we have consider in this study:
+
+```{r ref.label="compar", echo=FALSE, eval=TRUE, comment="", fig.height=3}
+```
+
+As we already known, the models RF and GBM are very close and far away of the CART model. Moreover, both have narrower IQ ranges.
+
+Now we can check if the differences between RF and GBM accuracies are statistically significant using a `t-tests` with Bonferroni correction. The null hypothesis is $H_o: RF_{accu} = GBM_{accu}$ and the alternate one $H_a: RF_{accu} \neq GBM_{accu}$:
+
+```{r ref.label="t-tests", echo=FALSE, eval=TRUE, comment="", fig.height=3}
+```
+
+As can be seen, the C.I. for the difference between GBM and RF accuracies includes 0 and the p-value is `r summary(diff)$table$Accuracy['GBM', 'RF']` > 0.05. At a confidence level of 95%, we fail to reject the null hypothesis and we must consider GBM and RF as equally accurate models.
+
+Taking this into account, together the fact that computational demands are considerably higher in Generalized Boosted models, we finally choose Random Forest as the optimal classification model for our scenario.
+
+Go to the appendix [Selecting the final model](#finalSelec) to see the R code used in this phase.
+
+# Predicting the activity classes in the `testing` dataset
+
+Once we have chosen the RF model, we can proceed to predict activity classes in the `testing` dataset.
+
+After applying the RF model, the predicted outcomes for the 20 test cases are:
+
+```{r ref.label="predTest", echo=FALSE, eval=TRUE, comment=""}
+```
+
+The probability of having predicted the 20 test cases correctly is `r cm$overall['Accuracy'] ^ 20`
+
+Go to the appendix [Predicting the activity classes in the testing dataset](#outcome) to see the R code used in this phase.
+
+# Conclusions
+
+The Random Forest and the Generalized Boosted classification models, properly parametrized and trained, are appropriate for predicting the quality outcome of the weight lifting exercise. Both models have reached an excellent accuracy and the probability of correctly predicting a testing dataset is sufficiently high.
+
+As they are equally accurate in statistical terms, we recommend the use of the Random Forest model in case you have a limited CPU/Memory platform as its computational demands are much lower.
+
 ```{r}
 
 stopCluster(cluster)
@@ -255,9 +277,9 @@ require(randomForest)
 require(rpart)
 require(gbm)
 require(MASS)
+require(plyr)
 
 ```
-
 
 ```{r fileDownload, echo=TRUE, eval=FALSE}
 
@@ -285,7 +307,6 @@ if (!file.exists(file_fullname)) {
 }
 
 ```
-
 
 ```{r datasets, echo=TRUE, eval=FALSE}
 
@@ -452,7 +473,7 @@ plot(model_rpart, main = "CART model: optimum parameters")
 # Predicting the results in the validating subset with the CART model
 #####################################################################
 
-# Predicting the result of the model iver the validating subset
+# Predicting the result of the model over the validating subset
 pred <- predict(model_rpart, validating, type = "raw")
 
 # Printing the results in a confusion matrix
@@ -465,23 +486,218 @@ cat("\nProbability of predicting test cases correctly:",
 
 ```
 
+## <a name="modRF"></a>The Random Forest model
+
+```{r rfcv, echo=TRUE, eval=FALSE}
+
+##############################################################
+# Prediction of CV error as a function of number of predictors
+##############################################################
+
+set.seed(150658)
+
+# Converting dataset in the matrix format required by function rfcv
+predWle <- model.matrix(classe ~ .-1, data = training)
+
+# Predicting CV error in terms of number of predictors
+cvpred <- rfcv(predWle, training$classe, cv.fold = 5, step = 0.65)
+
+plot(cvpred$error.cv ~ as.numeric(names(cvpred$error.cv)), type = "b",
+     main = "Predicted CV performance in the RF model", 
+     xlab = "Number of predictors", ylab = "CV error")
+
+```
+
+```{r rf, echo=TRUE, eval=FALSE}
+
+#####################################
+# Training the RF model
+#####################################
+
+set.seed(150658)
+
+# Defining the grid of mtry values
+rfGrid <- expand.grid(mtry = seq(5, 25, by = 4))
+
+# Training the model with the grid of mtry values and a ntree size of 60
+model_rf <- train(classe ~ ., data = training, 
+               method = "rf", ntree= 60, trControl = cvParam,
+               tuneGrid = rfGrid)
+
+```
+
+```{r CVRF, echo=TRUE, eval=FALSE}
+
+####################################
+# Showing Accuracy vs. mtry parameter
+####################################
+
+plot(model_rf, main = "RF model: optimum parameters")
+
+```
+
+```{r treesRF, echo=TRUE, eval=FALSE}
+
+####################################
+# Showing Error vs. ntree parameter
+####################################
+
+plot(model_rf$finalModel, main = "Influence of number of trees on model error")
+
+```
+
+```{r ValidRF, echo=TRUE, eval=FALSE}
+
+#####################################################################
+# Predicting the results in the validating subset with the RF model
+#####################################################################
+
+# Predicting the result of the model over the validating subset
+pred <- predict(model_rf, validating, type = "raw")
+
+# Printing the results in a confusion matrix
+cm <- confusionMatrix(pred,validating$classe)
+print(cm)
+
+# Probability of predicting the test cases
+cat("\nProbability of predicting test cases correctly:",
+    (cm$overall["Accuracy"]) ^ 20, "\n")
+
+```
+
+
+## <a name="modGBM"></a>The Generalized Boosted Model
+
+```{r gbm, echo=TRUE, eval=FALSE}
+
+#####################################
+# Training the GBM model
+#####################################
+
+set.seed(150658)
+
+# Defining the grid of parameter values
+gbmGrid <-  expand.grid(interaction.depth = 15,
+                        n.trees = 300,
+                        shrinkage = 0.1,
+                        n.minobsinnode = 150)
+
+# Training the GB model with the grid of values
+model_gbm <- train(classe ~ ., data = training, 
+                   method = "gbm", trControl = cvParam, verbose = FALSE,
+                   tuneGrid = gbmGrid)
+```
+
+```{r CVGBM, echo=TRUE, eval=FALSE}
+
+########################################
+# Showing Accuracy vs. model parameters
+#######################################
+
+plot(model_gbm, plotType = "scatter")
+
+```
+
+```{r ValidGBM, echo=TRUE, eval=FALSE}
+
+#####################################################################
+# Predicting the results in the validating subset with the GB model
+#####################################################################
+
+# Predicting the result of the model over the validating subset
+pred <- predict(model_gbm, validating, type = "raw")
+
+# Printing the results in a confusion matrix
+cm <- confusionMatrix(pred,validating$classe)
+print(cm)
+
+# Probability of predicting the test cases
+cat("\nProbability of predicting test cases correctly:",
+    (cm$overall["Accuracy"]) ^ 20, "\n")
+
+```
+
+##<a name="finalSelec"></a>Selecting the final model
+
+```{r compar, echo=TRUE, eval=FALSE}
+
+##########################################
+# Comparing accuracy metric between models
+##########################################
+
+# Resampling and comparing the models
+resamp <- resamples(list(CART = model_rpart, RF = model_rf, GBM = model_gbm))
+
+# Showing the comparison
+summary(resamp, metric = "Accuracy")
+dotplot(resamp, metric = "Accuracy", main = "Accuracy comparison between models")
+
+```
+
+```{r t-tests, echo=TRUE, eval=FALSE}
+
+##################################################
+# Doing t-test (Bonferroni adjusted) with accuracies 
+##################################################
+
+# t-tests with Bonferroni correction for accuracy models
+diff <- diff(resamp)
+
+# Showing results
+summary(diff)
+dotplot(diff, metric = "Accuracy", main = "Accuracy t-tests")
+
+```
+
+##<a name="outcome"></a>Predicting the activity classes in the testing dataset
+
+```{r predTest, echo=TRUE, eval=FALSE}
+
+##################################################
+# Generating the prediction for the testing dataset
+##################################################
+
+# Predicting the outcome
+outcome <- predict(model_rf, wle.testing, type = "raw")
+
+# Asigning the test case indentifier to every outcome 
+names(outcome) <-  wle.testing.raw$problem_id
+
+# Printing the resuts
+print(outcome)
+
+```
+
 #<a name="models"></a>Appendices: II - Model's details.
 
-## <a name="resCART"></a>Detailed training process and final tree of the CART model
+## <a name="resCART"></a>Detailed process and final tree of the CART model
 
 ```{r printCART, echo=TRUE, eval=TRUE, comment="", fig.height=6.5, fig.width=9}
 
 print(model_rpart)
+
 plot(model_rpart$finalModel, uniform = TRUE,
      main = "CART model")
 text(model_rpart$finalModel, pretty = 0, cex = 0.5)
 
 ```
 
-## <a name="RF"></a>Detailed training process of the RF model
+## <a name="resRF"></a>Detailed process and final results of the RF model
 
-```{r printRF, echo=TRUE, eval=TRUE, comment="", fig.height=6.5, fig.width=9}
+```{r printRF, echo=TRUE, eval=TRUE, comment=""}
 
 print(model_rf)
+
+print(model_rf$finalModel)
+
+```
+
+## <a name="resGBM"></a>Detailed process and final results of the GB model
+
+```{r printGBM, echo=TRUE, eval=TRUE, comment=""}
+
+print(model_gbm)
+
+print(model_gbm$finalModel)
 
 ```
