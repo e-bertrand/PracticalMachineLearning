@@ -152,7 +152,7 @@ Random Forest models are supported by the `randomForest` package. In a RF model 
 
 Before we establish a grid of `mtry` values to be evaluated in the `train()` function, we can predict the cross-validated performance for different number of predictors with the `rfcv()` function of `randomForest`:
 
-```{r ref.label="rfcv", echo=FALSE, eval=FALSE, comment="", fig.height=4, fig.width=5}
+```{r ref.label="rfcv", echo=FALSE, eval=TRUE, comment="", fig.height=4, fig.width=5}
 ```
 
 In the light of the previous graph, we can define a grid of `mtry` values from 5 to 25. The other relevant RF parameter, number of trees to grow (`ntree`), is fixed in 60 to make the model computable with limited resources. After executing the model, we will check if this number is acceptable:
@@ -187,7 +187,7 @@ In you want to see more details on the training process and results go to the ap
 ```
 
 
-## Generalized Boosted Models (GBM)
+## Generalized Boosted Model (GBM)
 
 Generalized Boosted models are supported by the `gbm` package. In a GB model there are many fitting parameters. Find the right balance between them using a cross validation approach is a computationally demanding task, so we will use in our case part of the key parameters, keeping fixed the rest. 
 
@@ -198,7 +198,7 @@ In detail, we define a grid of parameters, varying `interaction.depth` (maximum 
 
 Cross validation shows how the accuracy depends on those parameters:
 
-```{r ref.label="CVGBM", echo=FALSE, eval=FALSE, fig.height=5, fig.width=5}
+```{r ref.label="CVGBM", echo=FALSE, eval=TRUE, fig.height=5, fig.width=5}
 ```
 
 Now we can apply the final model, which has a `interaction.depth` value of `r model_gbm$finalModel$interaction.depth` and a `n.minobsinnode` value of `r model_gbm$finalModel$n.minobsinnode`, to the `validating` subset for getting the accuracy and estimating the probability of predicting the 20 test cases correctly:
@@ -256,11 +256,6 @@ The Random Forest and the Generalized Boosted classification models, properly pa
 
 As they are equally accurate in statistical terms, we recommend the use of the Random Forest model in case you have a limited CPU/Memory platform as its computational demands are much lower.
 
-```{r}
-
-stopCluster(cluster)
-
-```
 
 #<a name="rcode"></a>Appendices: I - R Code
 
@@ -401,7 +396,7 @@ wle.testing <- wle.testing.raw[, finalCols]
 
 ##<a name="preStep"></a>Preliminary steps: cross validation configuration and dataset splitting
 
-```{r crossval, echo=TRUE, eval=FALSE, comment=""}
+```{r crossval, echo=TRUE, eval=FALSE}
 
 #####################################################
 # Cross validation configuration for train() function
@@ -577,10 +572,10 @@ cat("\nProbability of predicting test cases correctly:",
 set.seed(150658)
 
 # Defining the grid of parameter values
-gbmGrid <-  expand.grid(interaction.depth = 15,
+gbmGrid <-  expand.grid(interaction.depth = c(10, 15),
                         n.trees = 300,
                         shrinkage = 0.1,
-                        n.minobsinnode = 150)
+                        n.minobsinnode = c(50, 100, 150))
 
 # Training the GB model with the grid of values
 model_gbm <- train(classe ~ ., data = training, 
@@ -646,6 +641,9 @@ diff <- diff(resamp)
 # Showing results
 summary(diff)
 dotplot(diff, metric = "Accuracy", main = "Accuracy t-tests")
+
+# As it is the last code chunk in the report, we close the defined clusters
+stopCluster(cluster)
 
 ```
 
